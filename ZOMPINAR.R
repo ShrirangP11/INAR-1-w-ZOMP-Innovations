@@ -35,7 +35,7 @@ pij <- function(i, j, alpha, phi, lam, p){
   return(sum)
 }
 
-pij(5, 6,  0.3, 0.6, 2, 0.7)
+pij(5, 6, 0.3, 0.6, 2, 0.7)
 
 
 
@@ -52,7 +52,11 @@ inn_thin <- function(k, alpha, phi, lam, p){
 
 
 #Simulating INAR(1) process with ZOMP innovations
-sim <- function(n, alpha, phi, lam, p){
+sim <- function(n, par){
+  alpha <- par[1]
+  phi <- par[2]
+  lam <- par[3]
+  p <- par[4]
   X <- c()
   X[1] <- rzomp(phi, lam, p)
   if(n>1){
@@ -69,31 +73,35 @@ sim <- function(n, alpha, phi, lam, p){
 
 
 #Simulate process
-sample <- sim(500, 0.2, 0.8, 5, 0.6)
+par <- c(0.2, 0.8, 5, 0.6)
+sample <- sim(200, par)
 
 #Estimation by Conditional Maximum Likelihood approach
-umat<- matrix(c(1,0,0,0,-1,0,0,0,0,1,0,0,0,-1,0,0,0,0,1,0,0,0,0,1,0,0,0,-1), nrow=7, ncol=4, byrow=T)
-cvec <- matrix(c(0,-1,0,-1,0,0,-1),nrow=7, ncol=1, byrow=T)
-init <- c(0.5,0.5,10,0.5)
-LLH_wrapper <- function(params){
-  alpha <- params[1]
-  phi <- params[2]
-  lam <- params[3]
-  p <- params[4]
-  #Log-Likelihood function
-  LLH <- function(alpha, phi, lam, p){
-    llh <- log(zompPMF(sample[1], phi, lam, p))
-    if(length(sample)>1){
-      for(i in 2:length(sample)){
-        llh <-  llh + log(pij(sample[i-1], sample[i], alpha, phi, lam, p))
+CML_wrapper <- function(sample){
+  umat<- matrix(c(1,0,0,0,-1,0,0,0,0,1,0,0,0,-1,0,0,0,0,1,0,0,0,0,1,0,0,0,-1), nrow=7, ncol=4, byrow=T)
+  cvec <- matrix(c(0,-1,0,-1,0,0,-1),nrow=7, ncol=1, byrow=T)
+  init <- c(0.5,0.5,5,0.5)
+  LLH_wrapper <- function(params){
+    alpha <- params[1]
+    phi <- params[2]
+    lam <- params[3]
+    p <- params[4]
+    #Log-Likelihood function
+    LLH <- function(alpha, phi, lam, p){
+      llh <- log(zotmpPMF(sample[1], phi, lam, p))
+      if(length(sample)>1){
+        for(i in 2:length(sample)){
+          llh <-  llh + log(pij(sample[i-1], sample[i], alpha, phi, lam, p))
+        }
       }
+      return(llh)
     }
-    return(llh)
+    return(LLH(alpha, phi, lam, p))
   }
-  return(LLH(alpha, phi, lam, p))
+  CML <- constrOptim(init, LLH_wrapper, grad=NULL, ui=umat, ci=cvec, control=list(fnscale=-1))
+  return(CML$par)
 }
-CML <- constrOptim(init, LLH_wrapper, grad=NULL, ui=umat, ci=cvec, control=list(fnscale=-1))
-CML$par
+
 
 
 alpha <- c()
@@ -101,7 +109,7 @@ phi <- c()
 lam <- c()
 p <- c()
 for(iter in 1:1){
-  sample <- sim(1000, 0.8, 0.7, 10, 0.9)
+  sample <- sim(1000, par)
   #Estimation by Conditional Least Squares approach
   umat<- matrix(c(1,0,0,0,-1,0,0,0,0,1,0,0,0,-1,0,0,0,0,1,0,0,0,0,1,0,0,0,-1), nrow=7, ncol=4, byrow=T)
   cvec <- matrix(c(0,-1,0,-1,0,0,-1),nrow=7, ncol=1, byrow=T)
@@ -138,7 +146,7 @@ mean(p)
 
 
 
-sample <- sim(500, 0.2, 0.2, 10, 0.5)
+sample <- sim(500, par)
 #Moment based estimation
 num <- 0
 for(i in 2:length(sample)){
@@ -159,21 +167,21 @@ loss <- function(X) {
   phi_est = X[1]
   p_est = X[2]
   lambda_est = (xbar - (phi_est*p_est)/(1-phi_est))
-  
+
   A1 <- alpha_est*xbar - (alpha_est^2)*xbar + (alpha_est^2)*u2 + phi_est*p_est
   B1 <- 2*alpha_est*(phi_est*p_est + (xbar^2)*(1-phi_est) - xbar*phi_est*p_est)
   C1 <- (xbar*(1-phi_est) - phi_est*p_est)^2
   D1 <- 4*phi_est*p_est*(xbar*(1-phi_est) - phi_est*p_est)
   E1 <- (xbar*(1-phi_est) - phi_est*p_est)*(1-phi_est*lambda_est)
-  
-  
+
+
   A2 <- (alpha_est^3)*(u3 - 3*u2 + 2*xbar) + 3*(alpha_est^2)*(u2-xbar) + alpha_est*xbar + (lambda_est^3)*(1-phi_est)
-  B2 <- 3*(lambda_est^2)*(1-phi_est)^2 + 12*phi_est*p_est*lambda_est*(1-phi_est) + phi_est*p_est 
+  B2 <- 3*(lambda_est^2)*(1-phi_est)^2 + 12*phi_est*p_est*lambda_est*(1-phi_est) + phi_est*p_est
   C2 <- 3*lambda_est*(1-phi_est)*(1-phi_est*lambda_est) - 2*lambda_est*(1-phi_est)
   D2 <- 3*alpha_est*xbar*((lambda_est*(1-phi_est))^2 + 4*phi_est*lambda_est*p_est*(1-phi_est) + phi_est*p_est + lambda_est*(1-phi_est)*(1-phi_est*lambda_est))
   E2 <- 3*(phi_est*p_est + lambda_est*(1-phi_est))*(alpha_est*(alpha_est-1)*xbar - u2*alpha_est^2)
-    
-    
+
+
   EQ1 <- A1 + B1 + C1 + D1 + E1 - u2
   EQ2 <- A2 + B2 + C2 + D2 + E2 - u3
   return(sum(abs(EQ1),abs(EQ2)))
@@ -185,21 +193,106 @@ p <- nlm(loss, c(0.5,0.5))$estimate[2];p
 lam <- xbar - (phi*p)/(1-phi);lam
 
 
-#Monthly number of U.S. cases of poliomyelitis for 1970 to 1983; Zeger(1988)
-sample <- c(0,1,0,0,1,3,9,2,3,5,3,5,2,2,0,1,0,1,3,3,
-            2,1,1,5,0,3,1,0,1,4,0,0,1,6,14,1,1,0,0,1,
-            1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,2,
-            0,1,0,1,0,0,1,2,0,0,1,2,0,3,1,1,0,2,0,4,
-            0,2,1,1,1,1,0,1,1,0,2,1,3,1,2,4,0,0,0,1,
-            0,1,0,2,2,4,2,3,3,0,0,2,7,8,2,4,1,1,2,4,0,
-            1,1,1,3,0,0,0,0,1,0,1,1,0,0,0,0,0,1,2,0,2,
-            0,0,0,1,0,1,0,1,0,2,0,0,1,2,0,1,0,0,0,1,2,
-            1,0,1,3,6)
 
 
-p1 <- hist(sample, breaks=c(0:14))
-p2 <- hist(sim(168, 0.13, 0.7, 2.9, 0.42))
-plot(p1, col=rgb(0,0,1,1/5))  
-plot(p2, col=rgb(1,0,0,1/5), add=T) 
-estimates
 
+#Estimation on Poliomyelitis dataset(Zeger, 1988)
+library(gamlss.data)
+library(ggplot2)
+sample <- polio
+sample <- sample[1:34]
+sample <- sample[36:length(sample)]
+for(i in 1:15){
+  simulated <- sim(length(sample), CML_wrapper(sample))
+  # Create a data frame for frequencies
+  observed_freq <- as.data.frame(table(sample))
+  simulated_freq <- as.data.frame(table(simulated))
+  # Rename columns for consistency
+  colnames(observed_freq) <- c("yt", "frequency")
+  colnames(simulated_freq) <- c("yt", "frequency")
+  observed_freq$model <- "Observed"
+  simulated_freq$model <- "ZOMPINAR"
+  combined_freq <- rbind(observed_freq, simulated_freq)
+  combined_freq$yt <- as.numeric(as.character(combined_freq$yt))
+  # Plot using ggplot2
+  ggplot(combined_freq, aes(x = yt, y = frequency, fill = model)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    geom_text(aes(label = frequency),
+              position = position_dodge(width = 0.9),
+              vjust = -0.5,
+              size = 3) +
+    labs(title = "Observed vs ZOMPINAR(1)",
+         x = expression(y[t]),
+         y = "frequency") +
+    scale_fill_manual(values = c("gray", "black")) +
+    theme_minimal() +
+    ylim(0,70)
+  ggsave(paste0('plot',i,'.png'), bg='white')
+}
+
+
+#Dengue data
+library(readr)
+Dengue <- read_table("Dengue.csv", col_names = FALSE)
+sample <- data.frame(Dengue)
+sample <- as.vector(t(sample))
+# Create a data frame for frequencies
+n <- 10000000
+observed_freq <- as.data.frame(table(sample))
+simulated <- sim(n, CML_wrapper(sample))
+simulated_freq <- as.data.frame(round((table(simulated)/n)*length(sample),0))
+# Rename columns for consistency
+colnames(observed_freq) <- c("yt", "frequency")
+colnames(simulated_freq) <- c("yt", "frequency")
+observed_freq$model <- "Observed"
+simulated_freq$model <- "ZOMPINAR"
+combined_freq <- rbind(observed_freq, simulated_freq)
+combined_freq$yt <- as.numeric(as.character(combined_freq$yt))
+# Plot using ggplot2
+ggplot(combined_freq, aes(x = yt, y = frequency, fill = model)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = frequency),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5,
+            size = 3) +
+  labs(title = "Observed vs ZOMPINAR(1)",
+       x = expression(y[t]),
+       y = "frequency") +
+  scale_fill_manual(values = c("gray", "black")) +
+  theme_minimal()
+plot(sample, type='l', ylab=expression(Y[t]), main='Dengue data')
+acf(sample, main='ACF Plot')
+pacf(sample, main='PACF Plot')
+
+
+#Legionnaire's data
+LGN <- read_table("Legionnaires.csv", col_names = FALSE)
+sample <- data.frame(LGN)
+sample <- as.vector(t(sample))
+# Create a data frame for frequencies
+n <- 10000000
+observed_freq <- as.data.frame(table(sample))
+simulated <- sim(n, CML_wrapper(sample))
+simulated_freq <- as.data.frame(round((table(simulated)/n)*length(sample),0))
+# Rename columns for consistency
+colnames(observed_freq) <- c("yt", "frequency")
+colnames(simulated_freq) <- c("yt", "frequency")
+observed_freq$model <- "Observed"
+simulated_freq$model <- "ZOMPINAR"
+combined_freq <- rbind(observed_freq, simulated_freq)
+combined_freq$yt <- as.numeric(as.character(combined_freq$yt))
+# Plot using ggplot2
+ggplot(combined_freq, aes(x = yt, y = frequency, fill = model)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = frequency),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5,
+            size = 3) +
+  labs(title = "Observed vs ZOMPINAR(1)",
+       x = expression(y[t]),
+       y = "frequency") +
+  scale_fill_manual(values = c("gray", "black")) +
+  theme_minimal()
+plot(sample, type='l', ylab=expression(Y[t]), main='Legionnaires data')
+acf(sample, main='ACF Plot')
+pacf(sample, main='PACF Plot')
