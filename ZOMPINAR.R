@@ -39,6 +39,23 @@ pij(5, 6, 0.3, 0.6, 2, 0.7)
 
 
 
+
+AIC <- function(sample, par){
+  alpha <- par[1]
+  phi <- par[2]
+  lam <- par[3]
+  p <- par[4]
+  LLH <- 1
+  for(i in 2:length(sample)){
+    LLH <- LLH * pij(sample[i-1], sample[i], alpha, phi, lam, p)
+  }
+  AIC <-  8 - 2*log(LLH)
+  return(AIC)
+}
+
+
+
+
 #PMF of thinned innovation
 inn_thin <- function(k, alpha, phi, lam, p){
   s <- 0
@@ -67,15 +84,6 @@ sim <- function(n, par){
   return(X)
 }
 
-
-
-
-
-
-#Simulate process
-par <- c(0.2, 0.8, 5, 0.6)
-sample <- sim(200, par)
-
 #Estimation by Conditional Maximum Likelihood approach
 CML_wrapper <- function(sample){
   umat<- matrix(c(1,0,0,0,-1,0,0,0,0,1,0,0,0,-1,0,0,0,0,1,0,0,0,0,1,0,0,0,-1), nrow=7, ncol=4, byrow=T)
@@ -101,6 +109,13 @@ CML_wrapper <- function(sample){
   CML <- constrOptim(init, LLH_wrapper, grad=NULL, ui=umat, ci=cvec, control=list(fnscale=-1))
   return(CML$par)
 }
+
+
+
+#Simulate process
+par <- c(0.2, 0.8, 5, 0.6)
+sample <- sim(200, par)
+AIC(sample, CML_wrapper(sample))
 
 
 
