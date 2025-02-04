@@ -39,18 +39,33 @@ pij(5, 6, 0.3, 0.6, 2, 0.7)
 
 
 
-
+#Akaike Information Criterion
 AIC <- function(sample, par){
   alpha <- par[1]
   phi <- par[2]
   lam <- par[3]
   p <- par[4]
-  LLH <- 1
+  LL <- 1
   for(i in 2:length(sample)){
-    LLH <- LLH * pij(sample[i-1], sample[i], alpha, phi, lam, p)
+    LL <- LL * pij(sample[i-1], sample[i], alpha, phi, lam, p)
   }
-  AIC <-  8 - 2*log(LLH)
+  AIC <-  8 - 2*log(LL)  #2k - 2log(LL)
   return(AIC)
+}
+
+
+#Bayesian Information Criterion
+BIC <- function(sample, var){
+  alpha <- par[1]
+  phi <- par[2]
+  lam <- par[3]
+  p <- par[4]
+  LL <- 1
+  for(i in 2:length(sample)){
+    LL <- LL * pij(sample[i-1], sample[i], alpha, phi, lam, p)
+  }
+  BIC <- (-2)*log(LL) + 4*log(length(sample)-1) # -2log(LL) + klog(n)
+  return(BIC)
 }
 
 
@@ -96,7 +111,8 @@ CML_wrapper <- function(sample){
     p <- params[4]
     #Log-Likelihood function
     LLH <- function(alpha, phi, lam, p){
-      llh <- log(zotmpPMF(sample[1], phi, lam, p))
+      # llh <- log(zompPMF(sample[1], phi, lam, p))
+      llh <- 0
       if(length(sample)>1){
         for(i in 2:length(sample)){
           llh <-  llh + log(pij(sample[i-1], sample[i], alpha, phi, lam, p))
